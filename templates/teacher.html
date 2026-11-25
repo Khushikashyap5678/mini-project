@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block title %}Teacher review | Campus Meeting Planner{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('index') }}#schedule">{{ icon('left', 17) }} Back to schedule</a>
+<section class="panel teacher-panel">
+  <header class="section-head teacher-head">
+    <div><h1>Teacher review</h1><p>{{ 'Review the details of pending appointment requests.' if signed_in else 'Sign in to review appointment requests.' }}</p></div>
+    {% if signed_in %}
+    <form method="post" action="{{ url_for('teacher_logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button button-outline" type="submit">Sign out</button>
+    </form>
+    {% endif %}
+  </header>
+  {% if not configured %}
+    <p class="info-box">Set <code>TEACHER_PASSWORD</code> before starting the app to enable teacher sign-in.</p>
+  {% elif not signed_in %}
+    <form method="post" class="teacher-login">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="teacher-password">Teacher password</label>
+      <input type="password" id="teacher-password" name="password" required autocomplete="current-password">
+      <button class="button button-primary" type="submit">Sign in</button>
+    </form>
+  {% else %}
+    <div class="queue-label"><h2>Pending requests</h2><span class="counter">{{ appointments|length }}</span></div>
+    {% for item in appointments %}
+    <article class="appointment">
+      <div class="appointment-date"><span>{{ item.when.strftime('%b') }}</span><strong>{{ item.when.day }}</strong></div>
+      <div class="appointment-copy">
+        <h3>{{ item.title }}</h3>
+        <p>{{ departments[item.department][0] }} · {{ item.when.strftime('%d %b %Y, %I:%M %p') }} IST</p>
+        {% if item.notes %}<p class="teacher-note">{{ item.notes }}</p>{% endif %}
+      </div>
+      <form class="review-action" method="post" action="{{ url_for('approve_appointment', appointment_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="revision" value="{{ item.revision }}">
+        <button class="button button-primary" type="submit" aria-label="Approve {{ item.title }}">{{ icon('check', 17) }} Approve</button>
+      </form>
+    </article>
+    {% else %}
+    <div class="empty"><h3>No requests waiting for approval</h3><p>New requests will appear here.</p></div>
+    {% endfor %}
+  {% endif %}
+</section>
+{% endblock %}

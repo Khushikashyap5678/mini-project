@@ -1,0 +1,41 @@
+{% from 'icons.html' import icon %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Campus Meeting Planner{% endblock %}</title>
+  <meta name="theme-color" content="#6f2d24">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="masthead">
+    <div class="shell masthead-inner">
+      <a class="identity" href="{{ url_for('index') }}">
+        <span class="identity-icon">{{ icon('library', 24) }}</span>
+        <span>Campus Meeting Planner<small>Manav Rachna</small></span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="{{ url_for('index') }}#schedule" {% if request.endpoint == 'index' %}aria-current="page"{% endif %}>Schedule</a>
+        <a href="{{ url_for('index') }}#reminders">Reminders{% if reminders %}<span class="nav-count">{{ reminders|length }}</span>{% endif %}</a>
+        <a href="{{ url_for('teacher_dashboard') }}" {% if request.endpoint == 'teacher_dashboard' %}aria-current="page"{% endif %}>Teacher review</a>
+        <a class="button button-outline" href="{{ url_for('add_appointment') }}">{{ icon('plus', 17) }} New request</a>
+      </nav>
+    </div>
+  </header>
+  <main class="shell main" id="main" tabindex="-1">
+    <div class="messages" aria-live="polite">
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+      <div class="flash {{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">
+        <span>{{ icon('check' if category == 'success' else 'bell', 18) }} {{ message }}</span>
+        <button class="icon-button dismiss" type="button" aria-label="Dismiss message">{{ icon('close', 17) }}</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% block content %}{% endblock %}
+    <footer class="page-footer"><span>Manav Rachna International Institute of Research and Studies</span><span>All times in IST</span></footer>
+  </main>
+</body>
+</html>

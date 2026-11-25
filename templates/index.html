@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% block content %}
+<section class="planner-heading">
+  <div>
+    <p class="overline">{{ today.strftime('%A, %d %B %Y') }}</p>
+    <h1>Meeting planner</h1>
+    <p>Request a campus appointment and follow its approval status.</p>
+  </div>
+  <a class="button button-primary" href="{{ url_for('add_appointment') }}">{{ icon('plus', 19) }} Request appointment</a>
+</section>
+
+<section class="stats" aria-label="Appointment summary">
+  <a class="stat panel" href="{{ url_for('index') }}#schedule">
+    <span class="badge-icon blue">{{ icon('calendar', 22) }}</span>
+    <span><span class="stat-label">Approved and upcoming</span><strong>{{ upcoming|length }}</strong></span>
+    {{ icon('arrow', 17) }}
+  </a>
+  <a class="stat panel" href="#reminders">
+    <span class="badge-icon amber">{{ icon('bell', 22) }}</span>
+    <span><span class="stat-label">Reminders due</span><strong>{{ reminders|length }}</strong></span>
+    {{ icon('arrow', 17) }}
+  </a>
+  <a class="stat panel" href="{{ url_for('index', status='pending') }}#schedule">
+    <span class="badge-icon violet">{{ icon('clock', 22) }}</span>
+    <span><span class="stat-label">Pending approval</span><strong>{{ pending_count }}</strong></span>
+    {{ icon('arrow', 17) }}
+  </a>
+  <div class="stat panel">
+    <span class="badge-icon green">{{ icon('check', 22) }}</span>
+    <span><span class="stat-label">Approved in next 7 days</span><strong>{{ week_count }}</strong></span>
+  </div>
+</section>
+
+<section class="dashboard-grid" aria-label="Calendar, reminders and schedule">
+  <div class="planner-tools">
+    <section class="panel date-panel" aria-labelledby="calendar-title">
+      <header class="section-head calendar-top">
+        <div><h2 id="calendar-title">Calendar</h2><p>{{ month.strftime('%B %Y') }}</p></div>
+        <div class="calendar-nav">
+          {% if previous_month %}<a class="icon-button" href="{{ previous_month }}" aria-label="Previous month">{{ icon('left', 17) }}</a>{% endif %}
+          {% if next_month %}<a class="icon-button" href="{{ next_month }}" aria-label="Next month">{{ icon('right', 17) }}</a>{% endif %}
+        </div>
+      </header>
+      <div class="month-grid">
+        {% for name in ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun') %}<span class="weekday">{{ name }}</span>{% endfor %}
+        {% for week in weeks %}
+        {% for day in week %}
+          {% set count = date_counts.get(day, 0) %}
+          <a href="{{ month_link(day.replace(day=1), day.isoformat()) }}" class="day {{ 'outside' if day.month != month.month }} {{ 'today' if day == today }} {{ 'selected' if day == selected_day }} {{ 'has-event' if count }}" aria-label="{{ day.strftime('%A, %d %B %Y') }}{{ ', ' ~ count ~ ' requests' if count }}" {% if day == selected_day %}aria-current="true"{% elif day == today %}aria-current="date"{% endif %}>{{ day.day }}</a>
+        {% endfor %}
+        {% endfor %}
+      </div>
+      <div class="calendar-key"><span><i class="key-today"></i>Today</span><span><i class="key-event"></i>Requests</span><a href="{{ month_link(today.replace(day=1)) }}">This month</a></div>
+    </section>
+
+    <section class="panel reminder-panel" id="reminders" aria-labelledby="reminders-title">
+      <header class="section-head"><div><h2 id="reminders-title">Reminders</h2><p>Based on each appointment’s alert time.</p></div><span class="badge-icon amber">{{ icon('bell', 20) }}</span></header>
+      {% if reminders %}
+      <ul class="reminder-list">
+        {% for item in reminders %}
+        <li><a href="{{ url_for('edit_appointment', appointment_id=item.id) }}"><span><strong>{{ item.title }}</strong><small>{{ item.when.strftime('%d %b, %I:%M %p') }} · {{ departments[item.department][0] }}</small></span>{{ icon('right', 17) }}</a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="reminder-empty"><span></span>You’re all caught up.</p>
+      {% endif %}
+    </section>
+  </div>
+  <div class="panel schedule-panel" id="schedule">
+    <header class="section-head"><div><h2>My schedule</h2><p>Search requests by department, date or status.</p></div><a class="button button-primary" href="{{ url_for('add_appointment') }}">{{ icon('plus', 18) }} New request</a></header>
+    <form class="filters" method="get" action="{{ url_for('index') }}#schedule">
+      <input type="hidden" name="month" value="{{ month.strftime('%Y-%m') }}">
+      {% if selected_day %}<input type="hidden" name="day" value="{{ selected_day.isoformat() }}">{% endif %}
+      <label class="search-box">{{ icon('search', 17) }}<input type="search" name="q" aria-label="Search appointments" placeholder="Search appointments" maxlength="100" value="{{ query }}"></label>
+      <select name="status" aria-label="Filter by status">{% for value, label in filters.items() %}<option value="{{ value }}" {{ 'selected' if status_filter == value }}>{{ label }}</option>{% endfor %}</select>
+      <select name="department" aria-label="Filter by department"><option value="">All departments</option>{% for value, category in departments.items() %}<option value="{{ value }}" {{ 'selected' if department_filter == value }}>{{ category[0] }}</option>{% endfor %}</select>
+      <button class="button button-outline" type="submit">Apply</button>
+    </form>
+    {% if selected_day %}
+    <div class="day-filter">Showing {{ selected_day.strftime('%d %b %Y') }} <a href="{{ month_link(month) }}">Clear date {{ icon('close', 13) }}</a></div>
+    {% endif %}
+    {% if appointments %}
+    <div class="appointment-list">
+      {% for item in appointments %}
+      {% set category = departments[item.department] %}
+      <article class="appointment">
+        <div class="appointment-date"><span>{{ item.when.strftime('%b') }}</span><strong>{{ item.when.day }}</strong></div>
+        <div class="appointment-copy">
+          <h3>{{ item.title }}</h3>
+          <p>{{ category[0] }} <span aria-hidden="true">·</span> {{ item.when.strftime('%I:%M %p') }}</p>
+          {% if item.notes %}<details><summary>Notes</summary><p>{{ item.notes }}</p></details>{% endif %}
+        </div>
+        <span class="status {{ item.status }}">{{ item.display_status }}</span>
+        {% if item.status in ('pending', 'approved') %}
+        <div class="appointment-actions">
+          <a class="icon-button" href="{{ url_for('edit_appointment', appointment_id=item.id) }}" title="Edit appointment" aria-label="Edit {{ item.title }}">{{ icon('edit', 17) }}</a>
+          {% if item.status == 'approved' %}
+          <a class="icon-button" href="{{ url_for('export_appointment', appointment_id=item.id) }}" title="Download calendar event" aria-label="Download calendar event for {{ item.title }}">{{ icon('download', 17) }}</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('cancel_appointment', appointment_id=item.id) }}" class="cancel-form" data-appointment="{{ item.title }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="icon-button icon-danger" title="Cancel appointment" aria-label="Cancel {{ item.title }}">{{ icon('close', 17) }}</button>
+          </form>
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <div class="empty-icon">{{ icon('calendar', 29) }}</div>
+      {% if query or department_filter or selected_day or status_filter != 'upcoming' or total %}
+      <h3>No matching appointments</h3><p>Change the filters or pick a different date.</p>
+      <a class="text-link" href="{{ url_for('index', status='all') }}#schedule">Show all appointments {{ icon('arrow', 16) }}</a>
+      {% else %}
+      <h3>Your schedule is clear</h3><p>Choose a campus department to send your first request.</p>
+      <a class="text-link" href="{{ url_for('add_appointment') }}">Request your first appointment {{ icon('arrow', 16) }}</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+</section>
+
+<section class="departments" aria-labelledby="departments-title">
+  <header class="section-head"><div><h2 id="departments-title">Campus departments</h2><p>Choose a department to start a request.</p></div></header>
+  <div class="department-grid">
+    {% for value, category in departments.items() if value != 'other' %}
+    <a class="panel department-card" href="{{ url_for('add_appointment', department=value) }}">
+      <span class="badge-icon {{ category[3] }}">{{ icon(category[2], 21) }}</span>
+      <span><strong>{{ category[0] }}</strong><small>{{ category[1] }}</small></span>{{ icon('arrow', 17) }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<dialog id="cancel-dialog" aria-labelledby="cancel-title" aria-describedby="cancel-description">
+  <div class="dialog-inner"><span class="badge-icon amber">{{ icon('calendar', 23) }}</span><h2 id="cancel-title">Cancel appointment?</h2><p id="cancel-description"></p>
+  <div class="dialog-actions"><button type="button" class="button button-outline" id="keep-booking">Keep booking</button><button type="button" class="button button-danger" id="confirm-cancel">Cancel appointment</button></div></div>
+</dialog>
+{% endblock %}

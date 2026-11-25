@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% from 'icons.html' import icon %}
+{% set editing = appointment is not none %}
+{% block title %}{{ 'Edit appointment' if editing else 'Request an appointment' }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('index', status='all' if editing else None) }}#schedule">{{ icon('left', 17) }} Back to schedule</a>
+<div class="booking-layout">
+  <section class="panel booking-panel">
+    <header class="booking-head">
+      <span class="badge-icon blue">{{ icon('calendar', 25) }}</span>
+      <h1>{{ 'Edit appointment' if editing else 'Request an appointment' }}</h1>
+      <p>{{ 'Update your booking details or choose a new time.' if editing else 'Choose a department, set a time, and decide when you want a reminder.' }}</p>
+    </header>
+    {% if errors %}<ul class="form-errors" role="alert">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+    {% if editing and appointment.status == 'approved' %}<p class="info-box">Changing the request details sends it back for teacher approval.</p>{% endif %}
+    <form class="booking-form" method="post">
+      {% if editing %}<input type="hidden" name="revision" value="{{ appointment.revision }}">{% endif %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Appointment title<input name="title" required maxlength="100" value="{{ values.title }}" placeholder="e.g. Faculty project review"></label>
+      <label>Campus department<select name="department" required id="department">
+        {% for key, category in departments.items() %}<option value="{{ key }}" {{ 'selected' if values.department == key }}>{{ category[0] }}</option>{% endfor %}
+      </select></label>
+      <label>Date and time <span class="label-hint">India Standard Time</span><input type="datetime-local" name="appointment_date" id="booking-date" required {{ 'min=' ~ earliest if not editing }} value="{{ values.appointment_date }}"></label>
+      <fieldset class="reminder-options">
+        <legend>Remind me</legend>
+        <div>{% for lead, label in reminder_options.items() %}
+        <label class="chip-option"><input type="radio" name="reminder_minutes" value="{{ lead }}" {{ 'checked' if values.reminder_minutes == lead }} required><span>{{ label }}</span></label>
+        {% endfor %}</div>
+      </fieldset>
+      <label>Notes <span class="label-hint">Optional</span><textarea name="notes" rows="4" maxlength="600" placeholder="Anything you want to remember or discuss?">{{ values.notes or '' }}</textarea></label>
+      <div class="form-actions"><a class="button button-outline" href="{{ url_for('index', status='all' if editing else None) }}#schedule">Back to schedule</a><button class="button button-primary" type="submit">{{ icon('check', 19) }} {{ 'Save changes' if editing else 'Submit request' }}</button></div>
+    </form>
+  </section>
+  <aside class="booking-aside">
+    <section class="booking-preview">
+      <span class="preview-icon">{{ icon('calendar', 34) }}</span>
+      <h2>Booking details</h2>
+      <p id="preview-department">{{ departments.get(values.department, departments.other)[0] }}</p>
+      <p id="preview-date">{{ values.appointment_date.replace('T', ' · ') if values.appointment_date else 'Choose a date and time' }}</p>
+      <div class="preview-reminder">{{ icon('bell', 17) }} <span id="preview-reminder">{{ reminder_options.get(values.reminder_minutes, 'Choose a reminder') }}</span></div>
+    </section>
+    <div class="panel booking-tip"><span class="badge-icon amber">{{ icon('bell', 20) }}</span><div><h3>Take reminders with you</h3><p>Once the teacher approves the request, download the calendar event from My schedule to import it with its reminder.</p></div></div>
+  </aside>
+</div>
+{% endblock %}
